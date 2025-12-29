@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
      }
   } catch(e) { console.error("RunAds origin detect failed", e); }
   
-  if (!API_BASE) API_BASE = "${process.env.NEXT_PUBLIC_BASE_URL || 'https://runads-demo.web.app'}"; // Fallback
+  if (!API_BASE) API_BASE = "${process.env.NEXT_PUBLIC_BASE_URL || 'https://yillik75.com.tr'}"; // Fallback
 
   // Unique container ID to prevent duplicates
   const CONTAINER_ID = 'runads-widget-container';
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
             </div>
             <div style="padding: 16px; background: #fff;">
                <h3 style="margin: 0 0 4px 0; color: #1e293b; font-size: 16px; font-weight: 700; line-height: 1.4;">\${ad.domain}</h3>
-               <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.5;">Check out this website in the \${ad.category} category.</p>
+               <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.5;">Best for website traffic</p>
             </div>
             <div style="padding: 10px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
                <span style="color: #94a3b8; font-size: 11px;">Powered by RunAds</span>
