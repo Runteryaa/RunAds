@@ -10,6 +10,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing Parameters" }, { status: 400 });
   }
 
+  // --- DEMO CLICK HANDLER ---
+  if (sourceSiteId === "DEMO" || targetSiteId === "RUNADS") {
+      // Just redirect to home, no transaction logic needed for demo
+      return NextResponse.redirect(new URL('/', request.url));
+  }
+  // --------------------------
+  
   try {
     const adminDb = getAdminDb();
     const FieldValue = (await import('firebase-admin/firestore')).FieldValue;
