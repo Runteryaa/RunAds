@@ -9,7 +9,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing ID" }, { status: 400 });
   }
 
-
+// --- DEMO MODE HANDLER ---
+  if (sourceSiteId === "DEMO") {
+      return NextResponse.json({
+          ad: {
+              id: "RUNADS", 
+              domain: "RunAds.com",
+              category: "DEMO",
+              isDemo: true
+          },
+          config: {
+              refreshInterval: 30 // Demo defaults to 30s
+          }
+      });
+  }
+  // -------------------------
+  
   try {
     const adminDb = getAdminDb();
     
