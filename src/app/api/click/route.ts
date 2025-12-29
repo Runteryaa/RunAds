@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   // --- DEMO CLICK HANDLER ---
   if (sourceSiteId === "DEMO" || targetSiteId === "RUNADS") {
       // Just redirect to home, no transaction logic needed for demo
-      return NextResponse.redirect(new URL('/', request.url));
+      return NextResponse.redirect("https://yillik75.com.tr");
   }
   // --------------------------
   
