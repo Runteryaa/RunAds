@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "RunAds",
-  description: "Next generation advertizing platform.",
+  description: "Next generation advertising platform.",
 };
 
 export default function RootLayout({
@@ -25,7 +26,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9944004180654653" crossorigin="anonymous"></script>
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9944004180654653"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -35,3 +41,4 @@ export default function RootLayout({
     </html>
   );
 }
+
