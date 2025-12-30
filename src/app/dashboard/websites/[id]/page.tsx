@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { Loader2, ArrowLeft, Copy, Check, Save } from "lucide-react";
+import { Loader2, ArrowLeft, Copy, Check, Save, Play, Pause, MonitorPlay, MonitorStop } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -20,6 +20,10 @@ export default function WebsiteDetailsPage() {
   const [adDescription, setAdDescription] = useState("");
   const [widgetColor, setWidgetColor] = useState("#4f46e5");
   const [widgetBgColor, setWidgetBgColor] = useState("#ffffff");
+
+  // Control fields
+  const [campaignActive, setCampaignActive] = useState(false); // active: Is my site being advertised?
+  const [showAds, setShowAds] = useState(true); // showAds: Do I show ads on my site?
 
   const websiteId = params.id as string;
 
@@ -39,6 +43,9 @@ export default function WebsiteDetailsPage() {
           setAdDescription(data.adDescription || "");
           setWidgetColor(data.widgetColor || "#4f46e5");
           setWidgetBgColor(data.widgetBgColor || "#ffffff");
+          
+          setCampaignActive(data.active || false);
+          setShowAds(data.showAds !== false); // Default to true if undefined
         }
       } catch (error) {
         console.error("Error fetching website:", error);
@@ -80,6 +87,30 @@ export default function WebsiteDetailsPage() {
       }
   };
 
+  const toggleCampaign = async () => {
+      try {
+          const newState = !campaignActive;
+          const docRef = doc(db, "websites", websiteId);
+          await updateDoc(docRef, { active: newState });
+          setCampaignActive(newState);
+      } catch (error) {
+          console.error("Error toggling campaign:", error);
+          alert("Failed to update campaign status.");
+      }
+  };
+
+  const toggleShowAds = async () => {
+    try {
+        const newState = !showAds;
+        const docRef = doc(db, "websites", websiteId);
+        await updateDoc(docRef, { showAds: newState });
+        setShowAds(newState);
+    } catch (error) {
+        console.error("Error toggling ad display:", error);
+        alert("Failed to update ad display status.");
+    }
+};
+
   const copyToClipboard = () => {
     const scriptTag = `<script src="${window.location.origin}/api/script?id=${websiteId}" async></script>`;
     navigator.clipboard.writeText(scriptTag);
@@ -107,8 +138,63 @@ export default function WebsiteDetailsPage() {
       
       <div className="grid lg:grid-cols-3 gap-8 mb-8">
         
-        {/* LEFT COLUMN: Details & Code */}
+        {/* LEFT COLUMN: Controls & Code */}
         <div className="lg:col-span-1 space-y-6">
+            
+            {/* Control Panel */}
+            <div className="bg-slate-900 border border-white/10 rounded-2xl p-6">
+                <h2 className="text-lg font-bold text-white mb-4">Control Panel</h2>
+                <div className="space-y-4">
+                    
+                    {/* Campaign Status */}
+                    <div className="p-4 bg-slate-950 rounded-xl border border-white/5 flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-slate-300">Campaign Status</span>
+                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${campaignActive ? 'bg-green-500/10 text-green-400' : 'bg-slate-700 text-slate-400'}`}>
+                                {campaignActive ? 'RUNNING' : 'PAUSED'}
+                            </span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                            {campaignActive ? "Your website is currently being advertised on the network." : "Your website is NOT being advertised."}
+                        </p>
+                        <button 
+                            onClick={toggleCampaign}
+                            className={`w-full py-2 px-3 rounded-lg font-medium text-xs flex items-center justify-center gap-2 transition-colors ${
+                                campaignActive 
+                                ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20' 
+                                : 'bg-green-600 hover:bg-green-500 text-white'
+                            }`}
+                        >
+                            {campaignActive ? <><Pause className="w-3 h-3" /> Stop Campaign</> : <><Play className="w-3 h-3" /> Start Campaign</>}
+                        </button>
+                    </div>
+
+                    {/* Ad Display Status */}
+                    <div className="p-4 bg-slate-950 rounded-xl border border-white/5 flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-slate-300">Ad Display</span>
+                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${showAds ? 'bg-indigo-500/10 text-indigo-400' : 'bg-slate-700 text-slate-400'}`}>
+                                {showAds ? 'ACTIVE' : 'DISABLED'}
+                            </span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                            {showAds ? "You are earning credits by showing ads on your site." : "Ads are hidden on your site. You are NOT earning credits."}
+                        </p>
+                        <button 
+                            onClick={toggleShowAds}
+                            className={`w-full py-2 px-3 rounded-lg font-medium text-xs flex items-center justify-center gap-2 transition-colors ${
+                                showAds 
+                                ? 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-white/10' 
+                                : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                            }`}
+                        >
+                            {showAds ? <><MonitorStop className="w-3 h-3" /> Stop Showing Ads</> : <><MonitorPlay className="w-3 h-3" /> Start Showing Ads</>}
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
              <div className="bg-slate-900 border border-white/10 rounded-2xl p-6">
                 <h2 className="text-lg font-bold text-white mb-4">Integration</h2>
                 <div className="relative group">

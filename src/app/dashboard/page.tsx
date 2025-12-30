@@ -32,6 +32,58 @@ export default function DashboardPage() {
     fetchWebsites();
   }, []);
 
+  const getStatusBadge = (site: any) => {
+    // Priority: use status field if available, fallback to active boolean
+    const status = site.status;
+    
+    if (status === 'approved') {
+      return (
+        <div className="px-2 py-1 text-xs font-medium rounded-full border bg-green-500/10 text-green-400 border-green-500/20">
+          Approved
+        </div>
+      );
+    }
+    
+    if (status === 'denied') {
+      return (
+        <div className="px-2 py-1 text-xs font-medium rounded-full border bg-red-500/10 text-red-400 border-red-500/20">
+          Denied
+        </div>
+      );
+    }
+
+    if (status === 'suspended') {
+      return (
+        <div className="px-2 py-1 text-xs font-medium rounded-full border bg-orange-500/10 text-orange-400 border-orange-500/20">
+          Suspended
+        </div>
+      );
+    }
+    
+    if (status === 'pending') {
+      return (
+        <div className="px-2 py-1 text-xs font-medium rounded-full border bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+          Pending
+        </div>
+      );
+    }
+
+    // Fallback for legacy data
+    if (site.active) {
+       return (
+        <div className="px-2 py-1 text-xs font-medium rounded-full border bg-green-500/10 text-green-400 border-green-500/20">
+          Active
+        </div>
+      );
+    }
+
+    return (
+        <div className="px-2 py-1 text-xs font-medium rounded-full border bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+          Pending
+        </div>
+    );
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
@@ -66,9 +118,7 @@ export default function DashboardPage() {
                 <div className="p-3 bg-slate-950 rounded-lg border border-white/10 group-hover:scale-105 transition-transform">
                   <Globe className="w-6 h-6 text-indigo-400" />
                 </div>
-                <div className={`px-2 py-1 text-xs font-medium rounded-full border ${site.active ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'}`}>
-                  {site.active ? 'Active' : 'Pending'}
-                </div>
+                {getStatusBadge(site)}
               </div>
               <h3 className="text-lg font-bold text-white mb-1 truncate">{site.domain}</h3>
               <p className="text-sm text-slate-400 mb-4">{site.category}</p>

@@ -16,44 +16,60 @@ export default function NewWebsitePage() {
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [refreshInterval, setRefreshInterval] = useState(30);
   
-  // Ad Creative (How my site looks to others)
   const [adTitle, setAdTitle] = useState("");
   const [adDescription, setAdDescription] = useState("");
 
-  // Widget Customization (How the widget looks on my site)
-  const [widgetColor, setWidgetColor] = useState("#4f46e5"); // Indigo default
-  const [widgetBgColor, setWidgetBgColor] = useState("#ffffff"); // White default
+  const [widgetColor, setWidgetColor] = useState("#4f46e5");
+  const [widgetBgColor, setWidgetBgColor] = useState("#ffffff");
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) return;
     setLoading(true);
+    setError(null);
 
     try {
-      // Basic domain validation
-      let cleanDomain = domain.replace(/^(https?:\/\/)?(www\.)?/, "").split('/')[0];
+      let fullUrl = domain.trim();
+      if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
+        fullUrl = `https://${fullUrl}`;
+      }
+      
+      let urlObject;
+      try {
+        urlObject = new URL(fullUrl);
+      } catch (err) {
+        setError("Invalid URL provided. Please enter a valid domain name.");
+        setLoading(false);
+        return;
+      }
+      
+      const cleanDomain = urlObject.hostname.replace(/^www\./, '');
 
       await addDoc(collection(db, "websites"), {
         userId: auth.currentUser.uid,
         domain: cleanDomain,
         category,
         refreshInterval: Number(refreshInterval),
-        adTitle: adTitle || cleanDomain, // Fallback to domain
+        adTitle: adTitle || cleanDomain,
         adDescription: adDescription || `Check out this ${category} website.`,
         widgetColor,
         widgetBgColor,
         createdAt: serverTimestamp(),
-        active: true, // Auto-active for now
+        active: false,
+        status: "pending",
+        hasCredits: true, 
         views: 0,
         clicks: 0
       });
 
-      router.push("/dashboard");
+      router.push("/dashboard/websites");
     } catch (error) {
       console.error("Error adding website:", error);
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -61,17 +77,22 @@ export default function NewWebsitePage() {
 
   return (
     <div className="max-w-4xl mx-auto pb-12">
-      <Link href="/dashboard" className="inline-flex items-center text-slate-400 hover:text-white mb-6 transition-colors">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
+      <Link href="/dashboard/websites" className="inline-flex items-center text-slate-400 hover:text-white mb-6 transition-colors">
+        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Websites
       </Link>
       
       <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 shadow-2xl">
         <h1 className="text-2xl font-bold text-white mb-2">Add New Website</h1>
-        <p className="text-slate-400 mb-8">Enter your website details to join the network.</p>
+        <p className="text-slate-400 mb-8">Your website will be submitted for review before it goes live. This usually takes around 12-24hours.</p>
 
         <form onSubmit={handleSubmit} className="space-y-8">
           
-          {/* Section 1: Core Info */}
+          {error && (
+            <div className="bg-red-900/50 border border-red-500/50 text-red-300 p-4 rounded-lg">
+              {error}
+            </div>
+          )}
+          
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-white border-b border-white/10 pb-2">Website Information</h3>
             <div className="grid md:grid-cols-2 gap-6">
@@ -105,7 +126,6 @@ export default function NewWebsitePage() {
             </div>
           </div>
 
-          {/* Section 2: Ad Creative */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-white border-b border-white/10 pb-2">Ad Creative</h3>
             <p className="text-xs text-slate-400">This is how your website will appear when advertised on other sites.</p>
@@ -135,7 +155,6 @@ export default function NewWebsitePage() {
             </div>
           </div>
 
-          {/* Section 3: Widget Customization */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-white border-b border-white/10 pb-2">Widget Customization</h3>
             <p className="text-xs text-slate-400">Customize how the ad popup looks on YOUR website.</p>
@@ -191,7 +210,6 @@ export default function NewWebsitePage() {
                 </div>
             </div>
 
-            {/* Preview */}
             <div className="mt-6 p-6 bg-slate-800/50 rounded-xl border border-white/5">
                 <p className="text-xs font-bold text-slate-500 uppercase mb-4">Preview</p>
                 <div className="w-80 mx-auto rounded-xl overflow-hidden shadow-2xl" style={{ backgroundColor: widgetBgColor }}>
@@ -219,7 +237,7 @@ export default function NewWebsitePage() {
             disabled={loading}
             className="w-full py-4 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
           >
-            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "Add Website"}
+            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "Submit for Review"}
           </button>
         </form>
       </div>
