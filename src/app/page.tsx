@@ -3,25 +3,20 @@
 import Link from "next/link";
 import { ArrowRight, BarChart3, Globe, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
 
 export default function LandingPage() {
   
-  useEffect(() => {
-    // Inject Demo Script
-    const script = document.createElement('script');
-    script.src = '/api/script?id=DEMO';
-    script.async = true;
-    document.body.appendChild(script);
+  const [copied, setCopied] = useState(false);
+    const scriptText = '<script src="https://runads.onrender.com/api/script?id=DEMO" async></script>';
 
-    return () => {
-        // Cleanup if needed (though difficult with appended scripts)
-        const widget = document.getElementById('runads-widget');
-        if (widget) widget.remove();
-        document.body.removeChild(script);
-    }
-  }, []);
-
+    const handleCopy = () => {
+        navigator.clipboard.writeText(scriptText);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+    
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white overflow-hidden">
       {/* Navbar */}
@@ -83,15 +78,28 @@ export default function LandingPage() {
                 Learn More
               </Link>
             </div>
-            
-             <div className="mt-8 p-4 bg-slate-900/50 rounded-lg inline-block border border-white/10 max-w-xl mx-auto">
-                <p className="text-sm text-slate-400 mb-2">Want to see it in action? Look at the bottom right corner!</p>
-                <div className="flex items-center gap-2 bg-black/30 p-2 rounded text-xs font-mono text-indigo-300">
-                    <span className="select-none text-slate-500">$</span>
-                    <span className="break-all">{`<script src="https://runads.com/api/script?id=DEMO" async></script>`}</span>
+                        
+            <div className="mt-8 p-4 bg-slate-900/50 rounded-lg inline-block border border-white/10 max-w-xl mx-auto w-full">
+                <p className="text-sm text-slate-400 mb-2">Want to see it in action? Use this script to try demo!</p>
+                <div className="flex items-center justify-between gap-2 bg-black/30 p-2 rounded text-xs font-mono text-indigo-300">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                        <span className="select-none text-slate-500">JS</span>
+                        <span className="break-all">{scriptText}</span>
+                    </div>
+                    <button 
+                        onClick={handleCopy} 
+                        className="p-1.5 hover:bg-white/10 rounded transition-colors text-slate-400 hover:text-white shrink-0"
+                    >
+                        {copied ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-400"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        )}
+                    </button>
                 </div>
             </div>
 
+            
           </motion.div>
         </div>
       </section>
@@ -169,8 +177,17 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="py-12 border-t border-white/10 bg-slate-950">
-        <div className="container mx-auto px-6 text-center text-slate-500">
-          <p>&copy; {new Date().getFullYear()} RunAds Network. All rights reserved.</p>
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm">
+            <div className="mb-4 md:mb-0">
+              <p>&copy; {new Date().getFullYear()} RunAds Network. All rights reserved.</p>
+            </div>
+            <div className="flex gap-6">
+              <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+              <Link href="/cookie-policy" className="hover:text-white transition-colors">Cookie Policy</Link>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
