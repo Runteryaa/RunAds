@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   // The raw script code
   const rawScript = `
 (function() {
+  console.log("RunAds: Script initializing for Site ID:", "${id}");
   const SITE_ID = "${id}";
   const API_BASE = "${API_BASE}";
   const CONTAINER_ID = 'runads-widget-container';
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
       const verifyToken = urlParams.get('runads_verify');
 
       if (verifyToken) {
+          console.log("RunAds: Verification token found, processing...");
           setTimeout(() => {
               fetch(API_BASE + '/api/ad-verify', {
                   method: 'POST',
@@ -35,8 +37,11 @@ export async function GET(request: NextRequest) {
               .then(res => res.json())
               .then(data => {
                   if (data.success) {
+                      console.log("RunAds: Visit verified successfully.");
                       const newUrl = window.location.href.split('?')[0];
                       window.history.replaceState({}, document.title, newUrl);
+                  } else {
+                      console.warn("RunAds: Verification failed:", data.error);
                   }
               })
               .catch(err => console.error("RunAds Verification Failed", err));
@@ -44,7 +49,10 @@ export async function GET(request: NextRequest) {
       }
   })();
 
-  if (document.getElementById(CONTAINER_ID)) return;
+  if (document.getElementById(CONTAINER_ID)) {
+      console.warn("RunAds: Widget already exists, skipping initialization.");
+      return;
+  }
 
   function escapeHTML(str) {
       if (!str) return '';
@@ -76,6 +84,7 @@ export async function GET(request: NextRequest) {
   let isManuallyClosed = false;
 
   function openAd() {
+      console.log("RunAds: Opening ad widget.");
       isManuallyClosed = false;
       minimizedBtn.style.transform = 'scale(0) rotate(-180deg)';
       minimizedBtn.style.opacity = '0';
@@ -87,6 +96,7 @@ export async function GET(request: NextRequest) {
   }
 
   function closeAd() {
+      console.log("RunAds: User closed ad widget.");
       isManuallyClosed = true;
       if (refreshTimer) clearTimeout(refreshTimer);
 
@@ -115,10 +125,21 @@ export async function GET(request: NextRequest) {
   });
 
   function renderAd(data) {
-      if (!data || !data.ad || data.config?.disabled) {
-          if (data.config?.disabled) console.log("RunAds: Ads disabled by publisher.");
-          else console.log("RunAds: No ads available to fill.");
-          
+      if (!data) {
+          console.error("RunAds: No data received for renderAd.");
+          return;
+      }
+
+      if (data.config?.disabled) {
+          console.log("RunAds: Ads disabled by publisher config.");
+          container.style.transform = 'translateY(150%)';
+          container.style.opacity = '0';
+          container.style.pointerEvents = 'none';
+          return;
+      }
+
+      if (!data.ad) {
+          console.log("RunAds: No ads available to fill request.");
           container.style.transform = 'translateY(150%)';
           container.style.opacity = '0';
           container.style.pointerEvents = 'none';
@@ -126,6 +147,8 @@ export async function GET(request: NextRequest) {
       }
 
       const ad = data.ad;
+      console.log("RunAds: Rendering ad for domain:", ad.domain);
+
       if (data.config && data.config.refreshInterval) {
           currentInterval = data.config.refreshInterval * 1000;
       }
@@ -171,6 +194,7 @@ export async function GET(request: NextRequest) {
   function fetchAd() {
     if (isManuallyClosed) return;
 
+    console.log("RunAds: Fetching ad from server...");
     fetch(API_BASE + '/api/ad-serve?id=' + SITE_ID)
       .then(res => res.json())
       .then(data => {
@@ -178,6 +202,7 @@ export async function GET(request: NextRequest) {
         if (refreshTimer) clearTimeout(refreshTimer);
         
         if (!isManuallyClosed && !data.config?.disabled) {
+            console.log("RunAds: Scheduling next refresh in " + (currentInterval / 1000) + "s");
             refreshTimer = setTimeout(fetchAd, currentInterval);
         }
       })
@@ -191,6 +216,7 @@ export async function GET(request: NextRequest) {
   }
 
   function init() {
+    console.log("RunAds: Creating Shadow DOM...");
     const host = document.createElement('div');
     host.id = 'runads-root';
     document.body.appendChild(host);

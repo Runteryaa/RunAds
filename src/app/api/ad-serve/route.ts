@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!sourceSiteId) {
+    console.error("RunAds Serve: Missing ID");
     return NextResponse.json({ error: "Missing ID" }, { status: 400, headers: corsHeaders });
   }
 
@@ -28,17 +29,21 @@ export async function GET(request: NextRequest) {
     // Fetch Source Site
     const sourceDoc = await adminDb.collection("websites").doc(sourceSiteId).get();
     if (!sourceDoc.exists) {
+      console.error(`RunAds Serve: Invalid Site ID ${sourceSiteId}`);
       return NextResponse.json({ error: "Invalid Site ID" }, { status: 404, headers: corsHeaders });
     }
     const sourceData = sourceDoc.data();
     
     // Check if disabled by owner
     if (sourceData?.showAds === false) {
+        console.log(`RunAds Serve: Ads disabled by owner for ${sourceSiteId}`);
         return NextResponse.json({ ad: null, config: { refreshInterval: 60, disabled: true } }, { headers: corsHeaders });
     }
 
     const category = sourceData?.category || "general";
     const refreshInterval = sourceData?.refreshInterval || 30;
+
+    console.log(`RunAds Serve: Processing request for ${sourceSiteId} (Category: ${category})`);
 
     // Helper function to pick a random candidate
     const pickRandom = (docs: any[]) => {
@@ -62,24 +67,24 @@ export async function GET(request: NextRequest) {
             .limit(20)
             .get();
         selectedAd = pickRandom(snapshot.docs);
+        if (selectedAd) console.log("RunAds Serve: Selected Level 1 (Paid / Same Category)");
     }
 
     // --- HIERARCHY LEVEL 2: Paid Ad (Any Category) ---
     // hasCredits: true, category: any
     if (!selectedAd) {
-        // console.log("Fallback L2: Paid / Any Category");
         const snapshot = await adminDb.collection("websites")
             .where("active", "==", true)
             .where("hasCredits", "==", true)
             .limit(20)
             .get();
         selectedAd = pickRandom(snapshot.docs);
+        if (selectedAd) console.log("RunAds Serve: Selected Level 2 (Paid / Any Category)");
     }
 
     // --- HIERARCHY LEVEL 3: Any Ad (Same Category) ---
     // hasCredits: ignored (true OR false), category: match
     if (!selectedAd) {
-        // console.log("Fallback L3: Any / Same Category");
         const snapshot = await adminDb.collection("websites")
             .where("category", "==", category)
             .where("active", "==", true)
@@ -87,22 +92,24 @@ export async function GET(request: NextRequest) {
             .limit(20)
             .get();
         selectedAd = pickRandom(snapshot.docs);
+        if (selectedAd) console.log("RunAds Serve: Selected Level 3 (Free / Same Category)");
     }
 
     // --- HIERARCHY LEVEL 4: Any Ad (Any Category) ---
     // hasCredits: ignored, category: any
     if (!selectedAd) {
-        // console.log("Fallback L4: Any / Any Category");
         const snapshot = await adminDb.collection("websites")
             .where("active", "==", true)
             // .where("hasCredits", "==", true) // REMOVED
             .limit(20)
             .get();
         selectedAd = pickRandom(snapshot.docs);
+        if (selectedAd) console.log("RunAds Serve: Selected Level 4 (Free / Any Category)");
     }
 
     // --- HIERARCHY LEVEL 5: System Promo ---
     if (!selectedAd) {
+        console.log("RunAds Serve: Selected Level 5 (System Promo)");
         selectedAd = {
             id: "system-promo", 
             domain: "runads.onrender.com",
