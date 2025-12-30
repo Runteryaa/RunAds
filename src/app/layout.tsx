@@ -48,6 +48,8 @@ export default function RootLayout({
               <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
               <Link href="/legal/terms" className="hover:text-white transition-colors">Terms of Service</Link>
               <Link href="/legal/cookie" className="hover:text-white transition-colors">Cookie Policy</Link>
+              <Link href="/legal/contact" className="hover:text-white transition-colors">Contact Us</Link>
+              <Link href="/legal/about" className="hover:text-white transition-colors">About US</Link>
             </div>
           </div>
         </div>

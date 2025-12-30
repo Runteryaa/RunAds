@@ -69,7 +69,8 @@ export async function GET(request: NextRequest) {
         [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
     }
 
-    let selectedAd = candidates.length > 0 ? candidates[0] : null;
+    // Explicitly type selectedAd to avoid TS errors when assigning the fallback object
+    let selectedAd: any = candidates.length > 0 ? candidates[0] : null;
 
     const refreshInterval = sourceData?.refreshInterval || 30;
 
@@ -95,9 +96,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
         ad: {
             id: selectedAd.id,
-            domain: (selectedAd as any).domain,
-            category: (selectedAd as any).category,
-            description: (selectedAd as any).description
+            domain: selectedAd.domain,
+            category: selectedAd.category,
+            description: selectedAd.description
         },
         config: {
             refreshInterval

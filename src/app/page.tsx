@@ -33,7 +33,7 @@ export default function LandingPage() {
           <div className="hidden md:flex gap-8 text-sm font-medium text-slate-300">
             <Link href="#features" className="hover:text-white transition-colors">Features</Link>
             <Link href="#how-it-works" className="hover:text-white transition-colors">How it Works</Link>
-            <Link href="#pricing" className="hover:text-white transition-colors">Pricing</Link>
+            <Link href="/about" className="hover:text-white transition-colors">About</Link>
           </div>
           <div className="flex gap-4">
             <Link href="/login" className="px-5 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors">
