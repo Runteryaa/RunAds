@@ -36,6 +36,21 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        {/* Footer */}
+      <footer className="py-12 border-t border-white/10 bg-slate-950">
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm">
+            <div className="mb-4 md:mb-0">
+              <p>&copy; {new Date().getFullYear()} RunAds Network. All rights reserved.</p>
+            </div>
+            <div className="flex gap-6">
+              <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+              <Link href="/legal/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+              <Link href="/legal/cookie" className="hover:text-white transition-colors">Cookie Policy</Link>
+            </div>
+          </div>
+        </div>
+      </footer>
       </body>
     </html>
   );
