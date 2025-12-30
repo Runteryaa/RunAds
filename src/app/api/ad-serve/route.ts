@@ -48,8 +48,7 @@ export async function GET(request: NextRequest) {
       .limit(20) 
       .get();
 
-    // 2. Fallback Strategy: Any Category (Fill Rate Protection)
-    // If no ads found in specific category, fetch from ANY active category
+    // 2. Fallback Strategy: Any Category
     if (snapshot.empty) {
         console.log(`No ads found for category ${category}, trying fallback...`);
         snapshot = await adminDb.collection("websites")
@@ -57,10 +56,6 @@ export async function GET(request: NextRequest) {
             .where("hasCredits", "==", true)
             .limit(20)
             .get();
-    }
-
-    if (snapshot.empty) {
-        return NextResponse.json({ ad: null, config: { refreshInterval: 60 } }, { headers: corsHeaders });
     }
 
     // Filter out self
@@ -78,21 +73,31 @@ export async function GET(request: NextRequest) {
 
     const refreshInterval = sourceData?.refreshInterval || 30;
 
+    // 3. Last Resort: System Ad (Self-Promo)
+    // If we have no paid ads to show, show a RunAds promo so the widget isn't empty.
     if (!selectedAd) {
-       return NextResponse.json({ ad: null, config: { refreshInterval } }, { headers: corsHeaders });
+        selectedAd = {
+            id: "system-promo", // Special ID
+            domain: "runads.onrender.com",
+            category: "Technology",
+            description: "Advertise your website here! Join the RunAds network today.",
+            userId: "system"
+        };
     }
 
-    // Count View
-    await adminDb.collection("websites").doc(sourceSiteId).update({
-        views: FieldValue.increment(1)
-    });
+    // Count View (only if it's a real ad, optional)
+    if (selectedAd.id !== "system-promo") {
+        await adminDb.collection("websites").doc(sourceSiteId).update({
+            views: FieldValue.increment(1)
+        });
+    }
 
     return NextResponse.json({ 
         ad: {
             id: selectedAd.id,
             domain: (selectedAd as any).domain,
             category: (selectedAd as any).category,
-            description: (selectedAd as any).description || "Best for website traffic"
+            description: (selectedAd as any).description
         },
         config: {
             refreshInterval
