@@ -38,31 +38,37 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ ad: null, config: { refreshInterval: 60, disabled: true } }, { headers: corsHeaders });
     }
 
-    const referer = request.headers.get('referer');
-    const origin = request.headers.get('origin');
-    const registeredDomain = sourceData?.domain || "";
-
-    if (referer && !referer.includes(registeredDomain) && !origin?.includes(registeredDomain)) {
-        // Domain mismatch logic (optional)
-    }
-
     const category = sourceData?.category || "general";
     
-    const snapshot = await adminDb.collection("websites")
+    // 1. Primary Strategy: Match Category
+    let snapshot = await adminDb.collection("websites")
       .where("category", "==", category)
       .where("active", "==", true)
       .where("hasCredits", "==", true)
       .limit(20) 
       .get();
 
+    // 2. Fallback Strategy: Any Category (Fill Rate Protection)
+    // If no ads found in specific category, fetch from ANY active category
+    if (snapshot.empty) {
+        console.log(`No ads found for category ${category}, trying fallback...`);
+        snapshot = await adminDb.collection("websites")
+            .where("active", "==", true)
+            .where("hasCredits", "==", true)
+            .limit(20)
+            .get();
+    }
+
     if (snapshot.empty) {
         return NextResponse.json({ ad: null, config: { refreshInterval: 60 } }, { headers: corsHeaders });
     }
 
+    // Filter out self
     const candidates = snapshot.docs
         .filter(doc => doc.id !== sourceSiteId)
         .map(doc => ({ id: doc.id, ...doc.data() }));
 
+    // Shuffle
     for (let i = candidates.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
@@ -76,6 +82,7 @@ export async function GET(request: NextRequest) {
        return NextResponse.json({ ad: null, config: { refreshInterval } }, { headers: corsHeaders });
     }
 
+    // Count View
     await adminDb.collection("websites").doc(sourceSiteId).update({
         views: FieldValue.increment(1)
     });

@@ -26,9 +26,6 @@ export async function GET(request: NextRequest) {
       const verifyToken = urlParams.get('runads_verify');
 
       if (verifyToken) {
-          console.log("RunAds: valid token detected, verifying in 3s...");
-          
-          // Wait 3 seconds to ensure high-quality traffic (not a bot/bounce)
           setTimeout(() => {
               fetch(API_BASE + '/api/ad-verify', {
                   method: 'POST',
@@ -38,8 +35,6 @@ export async function GET(request: NextRequest) {
               .then(res => res.json())
               .then(data => {
                   if (data.success) {
-                      console.log("RunAds: Visit Verified & Paid ✅");
-                      // Remove the ugly token from the URL bar
                       const newUrl = window.location.href.split('?')[0];
                       window.history.replaceState({}, document.title, newUrl);
                   }
@@ -121,6 +116,9 @@ export async function GET(request: NextRequest) {
 
   function renderAd(data) {
       if (!data || !data.ad || data.config?.disabled) {
+          if (data.config?.disabled) console.log("RunAds: Ads disabled by publisher.");
+          else console.log("RunAds: No ads available to fill.");
+          
           container.style.transform = 'translateY(150%)';
           container.style.opacity = '0';
           container.style.pointerEvents = 'none';
@@ -184,6 +182,7 @@ export async function GET(request: NextRequest) {
         }
       })
       .catch(err => {
+         console.error("RunAds: Failed to fetch ad", err);
          if (refreshTimer) clearTimeout(refreshTimer);
          if (!isManuallyClosed) {
              refreshTimer = setTimeout(fetchAd, 60000); 
@@ -220,7 +219,7 @@ export async function GET(request: NextRequest) {
               toplevel: true, // Mangle top-level variable names
           },
           compress: {
-              drop_console: false, // Keep console logs for now, or true to remove
+              drop_console: false, // Keep console logs
           }
       });
 
