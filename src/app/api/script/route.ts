@@ -10,13 +10,41 @@ export async function GET(request: NextRequest) {
 
   // 1. Detect the actual Ad Server Origin on the server side
   // This ensures API_BASE is always your server, never the publisher's.
-  const adServerOrigin = new URL(request.url).origin;
+  const API_BASE = process.env.NEXT_PUBLIC_APP_URL || "https://runads.onrender.com";
 
   const scriptContent = `
 (function() {
   const SITE_ID = "${id}";
-  const API_BASE = "${adServerOrigin}"; // Hardcoded correct origin
+  const API_BASE = "${API_BASE}"; // Hardcoded correct origin
   const CONTAINER_ID = 'runads-widget-container';
+
+  (function verifyVisit() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const verifyToken = urlParams.get('runads_verify');
+
+      if (verifyToken) {
+          console.log("RunAds: valid token detected, verifying in 3s...");
+          
+          // Wait 3 seconds to ensure high-quality traffic (not a bot/bounce)
+          setTimeout(() => {
+              fetch(API_BASE + '/api/ad-verify', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ token: verifyToken })
+              })
+              .then(res => res.json())
+              .then(data => {
+                  if (data.success) {
+                      console.log("RunAds: Visit Verified & Paid ✅");
+                      // Remove the ugly token from the URL bar
+                      const newUrl = window.location.href.split('?')[0];
+                      window.history.replaceState({}, document.title, newUrl);
+                  }
+              })
+              .catch(err => console.error("RunAds Verification Failed", err));
+          }, 3000); 
+      }
+  })();
 
   // Prevent double loading
   if (document.getElementById(CONTAINER_ID)) return;
@@ -204,9 +232,12 @@ export async function GET(request: NextRequest) {
       document.addEventListener('DOMContentLoaded', init);
   }
 
+  
+
 })();
   `;
 
+  
   return new NextResponse(scriptContent, {
     headers: {
       "Content-Type": "application/javascript",
