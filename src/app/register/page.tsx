@@ -113,6 +113,7 @@ export default function RegisterPage() {
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sign Up"}
           </button>
+          <p className="mt-6 text-center text-slate-300 text-xs">By creating an account, you agree to our <Link href="/legal/terms" className="text-indigo-400">TermsOfService</Link>, <Link href="/legal/privacy" className="text-indigo-400">PrivacyPolicy</Link> and <Link href="/legal/cookie" className="text-indigo-400">CookiePolicy</Link>.</p>
         </form>
 
         <p className="mt-6 text-center text-slate-400 text-sm">
