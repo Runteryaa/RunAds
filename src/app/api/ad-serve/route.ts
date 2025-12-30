@@ -8,6 +8,11 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const sourceSiteId = searchParams.get("id");
 
+  // Server-side Log
+  const categoryLog = sourceSiteId ? `(Site ID: ${sourceSiteId})` : "";
+  console.log(`[AdServe] ------------------------------------------------`);
+  console.log(`[AdServe] Request Start ${categoryLog}`);
+
   const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -19,7 +24,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!sourceSiteId) {
-    console.error("RunAds Serve: Missing ID");
+    console.error("[AdServe] Error: Missing ID");
     return NextResponse.json({ error: "Missing ID" }, { status: 400, headers: corsHeaders });
   }
 
@@ -29,33 +34,37 @@ export async function GET(request: NextRequest) {
     // Fetch Source Site
     const sourceDoc = await adminDb.collection("websites").doc(sourceSiteId).get();
     if (!sourceDoc.exists) {
-      console.error(`RunAds Serve: Invalid Site ID ${sourceSiteId}`);
+      console.error("[AdServe] Error: Invalid Site ID");
       return NextResponse.json({ error: "Invalid Site ID" }, { status: 404, headers: corsHeaders });
     }
     const sourceData = sourceDoc.data();
     
     // Check if disabled by owner
     if (sourceData?.showAds === false) {
-        console.log(`RunAds Serve: Ads disabled by owner for ${sourceSiteId}`);
+        console.log("[AdServe] Ads disabled by owner.");
         return NextResponse.json({ ad: null, config: { refreshInterval: 60, disabled: true } }, { headers: corsHeaders });
     }
 
     const category = sourceData?.category || "general";
     const refreshInterval = sourceData?.refreshInterval || 30;
 
-    console.log(`RunAds Serve: Processing request for ${sourceSiteId} (Category: ${category})`);
+    console.log(`[AdServe] Source Category: ${category}`);
 
     // Helper function to pick a random candidate
-    const pickRandom = (docs: any[]) => {
+    const pickRandom = (docs: any[], stageName: string) => {
+        // Filter out self
         const filtered = docs
             .filter(doc => doc.id !== sourceSiteId)
             .map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        console.log(`[AdServe] ${stageName}: Found ${docs.length} raw, ${filtered.length} after filtering self.`);
             
         if (filtered.length === 0) return null;
         return filtered[Math.floor(Math.random() * filtered.length)];
     };
 
     let selectedAd: any = null;
+    let selectionLevel = "None";
 
     // --- HIERARCHY LEVEL 1: Paid Ad (Same Category) ---
     // hasCredits: true, category: match
@@ -66,8 +75,8 @@ export async function GET(request: NextRequest) {
             .where("hasCredits", "==", true)
             .limit(20)
             .get();
-        selectedAd = pickRandom(snapshot.docs);
-        if (selectedAd) console.log("RunAds Serve: Selected Level 1 (Paid / Same Category)");
+        selectedAd = pickRandom(snapshot.docs, "L1 (Paid/Same)");
+        if (selectedAd) selectionLevel = "L1 (Paid/Same)";
     }
 
     // --- HIERARCHY LEVEL 2: Paid Ad (Any Category) ---
@@ -78,21 +87,20 @@ export async function GET(request: NextRequest) {
             .where("hasCredits", "==", true)
             .limit(20)
             .get();
-        selectedAd = pickRandom(snapshot.docs);
-        if (selectedAd) console.log("RunAds Serve: Selected Level 2 (Paid / Any Category)");
+        selectedAd = pickRandom(snapshot.docs, "L2 (Paid/Any)");
+        if (selectedAd) selectionLevel = "L2 (Paid/Any)";
     }
 
     // --- HIERARCHY LEVEL 3: Any Ad (Same Category) ---
-    // hasCredits: ignored (true OR false), category: match
+    // hasCredits: ignored, category: match
     if (!selectedAd) {
         const snapshot = await adminDb.collection("websites")
             .where("category", "==", category)
             .where("active", "==", true)
-            // .where("hasCredits", "==", true) // REMOVED
             .limit(20)
             .get();
-        selectedAd = pickRandom(snapshot.docs);
-        if (selectedAd) console.log("RunAds Serve: Selected Level 3 (Free / Same Category)");
+        selectedAd = pickRandom(snapshot.docs, "L3 (Free/Same)");
+        if (selectedAd) selectionLevel = "L3 (Free/Same)";
     }
 
     // --- HIERARCHY LEVEL 4: Any Ad (Any Category) ---
@@ -100,16 +108,15 @@ export async function GET(request: NextRequest) {
     if (!selectedAd) {
         const snapshot = await adminDb.collection("websites")
             .where("active", "==", true)
-            // .where("hasCredits", "==", true) // REMOVED
             .limit(20)
             .get();
-        selectedAd = pickRandom(snapshot.docs);
-        if (selectedAd) console.log("RunAds Serve: Selected Level 4 (Free / Any Category)");
+        selectedAd = pickRandom(snapshot.docs, "L4 (Free/Any)");
+        if (selectedAd) selectionLevel = "L4 (Free/Any)";
     }
 
     // --- HIERARCHY LEVEL 5: System Promo ---
     if (!selectedAd) {
-        console.log("RunAds Serve: Selected Level 5 (System Promo)");
+        selectionLevel = "L5 (System Promo)";
         selectedAd = {
             id: "system-promo", 
             domain: "runads.onrender.com",
@@ -117,7 +124,10 @@ export async function GET(request: NextRequest) {
             description: "Advertise your website here! Join the RunAds network today.",
             userId: "system"
         };
+        console.log("[AdServe] L5: Using System Promo");
     }
+
+    console.log(`[AdServe] SUCCESS. Serving Level: ${selectionLevel}, Ad ID: ${selectedAd.id}`);
 
     // Count View (only if it's a real ad)
     if (selectedAd.id !== "system-promo") {
@@ -134,12 +144,13 @@ export async function GET(request: NextRequest) {
             description: selectedAd.description
         },
         config: {
-            refreshInterval
+            refreshInterval,
+            debugInfo: selectionLevel
         }
     }, { headers: corsHeaders });
 
   } catch (error) {
-    console.error("Ad Serve Error:", error);
+    console.error("[AdServe] Critical Error:", error);
     return NextResponse.json({ ad: null, config: { refreshInterval: 60 } }, { headers: corsHeaders });
   }
 }
