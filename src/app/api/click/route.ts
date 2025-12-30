@@ -14,6 +14,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing Parameters" }, { status: 400 });
   }
 
+  // IP Address Detection
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+
   try {
     const adminDb = getAdminDb();
 
@@ -31,7 +34,6 @@ export async function GET(request: NextRequest) {
     const targetDoc = await targetDocRef.get();
 
     if (!targetDoc.exists) {
-        // Fallback for system promos or deleted sites
         if (targetSiteId === "system-promo") {
              return NextResponse.redirect("https://runads.onrender.com");
         }
@@ -46,103 +48,111 @@ export async function GET(request: NextRequest) {
         destinationUrl = `https://${destinationUrl}`;
     }
 
-    // 5. ANTI-FRAUD: Prevent Self-Clicking
+    // 5. ANTI-FRAUD CHECKS
+    
+    // A. Self-Click Prevention
     if (process.env.IS_BETA !== 'true' && sourceData?.userId === targetData?.userId) {
-        console.log("Self-click prevented in production.");
+        console.log(`[Click] Fraud: Self-click detected (IP: ${ip})`);
         return NextResponse.redirect(destinationUrl);
     }
     
-    // 6. Handling System Promos
+    // B. System Promos (No credit)
     if (targetSiteId === "system-promo") {
          return NextResponse.redirect(destinationUrl);
     }
 
-    // Variables to track if we need to update website statuses after transaction
+    // C. RATE LIMITING (1 Click per IP per Source per 24h)
+    // We check if this IP has already clicked on THIS source website recently.
+    // Note: We don't care which Target they clicked. We limit the Publisher's ability to generate credits from one person.
+    
+    // Calculate timestamp for 24 hours ago
+    const yesterday = new Date();
+    yesterday.setHours(yesterday.getHours() - 24);
+
+    const logsRef = adminDb.collection("click_logs");
+    const existingLogQuery = await logsRef
+        .where("ip", "==", ip)
+        .where("sourceSiteId", "==", sourceSiteId)
+        .where("timestamp", ">", yesterday)
+        .limit(1)
+        .get();
+
+    if (!existingLogQuery.empty) {
+        console.log(`[Click] Rate Limit: IP ${ip} already clicked on site ${sourceSiteId} in last 24h.`);
+        // Redirect the user but DO NOT transfer credits.
+        return NextResponse.redirect(destinationUrl);
+    }
+
+    // 6. EXECUTE TRANSACTION & LOGGING
     let shouldDisableTarget = false;
     let shouldEnableSource = false;
     const targetUserId = targetData?.userId;
     const sourceUserId = sourceData?.userId;
 
-    // 7. EXECUTE TRANSACTION (Direct Credit Transfer)
     await adminDb.runTransaction(async (t) => {
         const targetUserRef = adminDb.collection("users").doc(targetUserId);
         const sourceUserRef = adminDb.collection("users").doc(sourceUserId);
 
         const targetUserDoc = await t.get(targetUserRef);
-        // We read source user too, to check if we need to reactivate their sites
         const sourceUserDoc = await t.get(sourceUserRef);
 
         const currentTargetCredits = targetUserDoc.data()?.credits || 0;
         const currentSourceCredits = sourceUserDoc.data()?.credits || 0;
 
-        // Check if Advertiser can pay
         if (currentTargetCredits > 0) {
-            // 1. Charge Advertiser
+            // Transfer Credits
             t.update(targetUserRef, { credits: FieldValue.increment(-1) });
-
-            // 2. Pay Publisher (1:1 Ratio)
             t.update(sourceUserRef, { credits: FieldValue.increment(1) });
             
-            // 3. Update Stats
-            t.update(sourceDocRef, { clicks: FieldValue.increment(1) }); // Publisher gets a "Click"
-            t.update(targetDocRef, { visitors: FieldValue.increment(1) }); // Advertiser gets a "Visitor"
+            // Update Stats
+            t.update(sourceDocRef, { clicks: FieldValue.increment(1) });
+            t.update(targetDocRef, { visitors: FieldValue.increment(1) });
+            
+            // Log this click to enforce rate limit
+            // We use a new doc ID composed of IP + Source + Day? No, random ID is fine with timestamp index.
+            const logDocRef = logsRef.doc();
+            t.set(logDocRef, {
+                ip: ip,
+                sourceSiteId: sourceSiteId,
+                targetSiteId: targetSiteId,
+                timestamp: FieldValue.serverTimestamp()
+            });
 
-            // CHECK LOGIC:
-            // If advertiser drops to 0 (or less), disable their campaigns.
-            if (currentTargetCredits - 1 <= 0) {
-                shouldDisableTarget = true;
-            }
-
-            // If publisher had <= 0 but now gets +1, re-enable their campaigns.
-            if (currentSourceCredits <= 0) {
-                shouldEnableSource = true;
-            }
+            // Campaign Logic
+            if (currentTargetCredits - 1 <= 0) shouldDisableTarget = true;
+            if (currentSourceCredits <= 0) shouldEnableSource = true;
         } else {
-           // User out of credits. We can't charge them.
            shouldDisableTarget = true;
         }
     });
 
-    // 8. POST-TRANSACTION UPDATES (Sync hasCredits flag on websites)
-    // We do this outside the transaction to avoid read-after-write limitations and keep the transaction fast.
-    
+    // 7. POST-TRANSACTION UPDATES
     if (shouldDisableTarget) {
-        // Find all websites for this user and set hasCredits = false
         const sitesSnapshot = await adminDb.collection("websites").where("userId", "==", targetUserId).get();
         if (!sitesSnapshot.empty) {
             const batch = adminDb.batch();
             sitesSnapshot.docs.forEach(doc => {
-                // Only update if it's currently true to save writes
-                if (doc.data().hasCredits !== false) {
-                    batch.update(doc.ref, { hasCredits: false });
-                }
+                if (doc.data().hasCredits !== false) batch.update(doc.ref, { hasCredits: false });
             });
             await batch.commit();
-            console.log(`Disabled campaigns for user ${targetUserId} due to low credits.`);
         }
     }
 
     if (shouldEnableSource) {
-        // Find all websites for this user and set hasCredits = true
         const sitesSnapshot = await adminDb.collection("websites").where("userId", "==", sourceUserId).get();
         if (!sitesSnapshot.empty) {
             const batch = adminDb.batch();
             sitesSnapshot.docs.forEach(doc => {
-                if (doc.data().hasCredits !== true) {
-                    batch.update(doc.ref, { hasCredits: true });
-                }
+                if (doc.data().hasCredits !== true) batch.update(doc.ref, { hasCredits: true });
             });
             await batch.commit();
-            console.log(`Re-enabled campaigns for user ${sourceUserId} (credits earned).`);
         }
     }
 
-    // 9. Redirect User
     return NextResponse.redirect(destinationUrl);
 
   } catch (error) {
     console.error("Click Tracking Error:", error);
-    // Always fail open: Send the user to the destination so UX isn't broken
     return NextResponse.redirect("https://google.com"); 
   }
 }
