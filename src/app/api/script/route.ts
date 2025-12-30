@@ -92,9 +92,6 @@ export async function GET(request: NextRequest) {
       container.style.transform = 'translateY(0)';
       container.style.opacity = '1';
       container.style.pointerEvents = 'auto';
-
-      // ✅ WAKE UP: Restart the fetching cycle immediately
-      fetchAd();
   }
 
   function closeAd() {
@@ -122,11 +119,12 @@ export async function GET(request: NextRequest) {
       }
   });
 
-  minimizedBtn.onclick = function(e) {
+  minimizedBtn.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
       openAd();
-  };
+      fetchAd(); 
+  });
 
   function renderAd(data) {
       if (!data || !data.ad) {
