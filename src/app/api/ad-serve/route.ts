@@ -25,60 +25,86 @@ export async function GET(request: NextRequest) {
   try {
     const adminDb = getAdminDb();
     
+    // Fetch Source Site
     const sourceDoc = await adminDb.collection("websites").doc(sourceSiteId).get();
-    
     if (!sourceDoc.exists) {
       return NextResponse.json({ error: "Invalid Site ID" }, { status: 404, headers: corsHeaders });
     }
-
     const sourceData = sourceDoc.data();
     
-    // Check if the user has disabled ads on their own site
+    // Check if disabled by owner
     if (sourceData?.showAds === false) {
         return NextResponse.json({ ad: null, config: { refreshInterval: 60, disabled: true } }, { headers: corsHeaders });
     }
 
     const category = sourceData?.category || "general";
-    
-    // 1. Primary Strategy: Match Category
-    let snapshot = await adminDb.collection("websites")
-      .where("category", "==", category)
-      .where("active", "==", true)
-      .where("hasCredits", "==", true)
-      .limit(20) 
-      .get();
+    const refreshInterval = sourceData?.refreshInterval || 30;
 
-    // 2. Fallback Strategy: Any Category
-    if (snapshot.empty) {
-        console.log(`No ads found for category ${category}, trying fallback...`);
-        snapshot = await adminDb.collection("websites")
+    // Helper function to pick a random candidate
+    const pickRandom = (docs: any[]) => {
+        const filtered = docs
+            .filter(doc => doc.id !== sourceSiteId)
+            .map(doc => ({ id: doc.id, ...doc.data() }));
+            
+        if (filtered.length === 0) return null;
+        return filtered[Math.floor(Math.random() * filtered.length)];
+    };
+
+    let selectedAd: any = null;
+
+    // --- HIERARCHY LEVEL 1: Paid Ad (Same Category) ---
+    // hasCredits: true, category: match
+    if (!selectedAd) {
+        const snapshot = await adminDb.collection("websites")
+            .where("category", "==", category)
             .where("active", "==", true)
             .where("hasCredits", "==", true)
             .limit(20)
             .get();
+        selectedAd = pickRandom(snapshot.docs);
     }
 
-    // Filter out self
-    const candidates = snapshot.docs
-        .filter(doc => doc.id !== sourceSiteId)
-        .map(doc => ({ id: doc.id, ...doc.data() }));
-
-    // Shuffle
-    for (let i = candidates.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    // --- HIERARCHY LEVEL 2: Paid Ad (Any Category) ---
+    // hasCredits: true, category: any
+    if (!selectedAd) {
+        // console.log("Fallback L2: Paid / Any Category");
+        const snapshot = await adminDb.collection("websites")
+            .where("active", "==", true)
+            .where("hasCredits", "==", true)
+            .limit(20)
+            .get();
+        selectedAd = pickRandom(snapshot.docs);
     }
 
-    // Explicitly type selectedAd to avoid TS errors when assigning the fallback object
-    let selectedAd: any = candidates.length > 0 ? candidates[0] : null;
+    // --- HIERARCHY LEVEL 3: Any Ad (Same Category) ---
+    // hasCredits: ignored (true OR false), category: match
+    if (!selectedAd) {
+        // console.log("Fallback L3: Any / Same Category");
+        const snapshot = await adminDb.collection("websites")
+            .where("category", "==", category)
+            .where("active", "==", true)
+            // .where("hasCredits", "==", true) // REMOVED
+            .limit(20)
+            .get();
+        selectedAd = pickRandom(snapshot.docs);
+    }
 
-    const refreshInterval = sourceData?.refreshInterval || 30;
+    // --- HIERARCHY LEVEL 4: Any Ad (Any Category) ---
+    // hasCredits: ignored, category: any
+    if (!selectedAd) {
+        // console.log("Fallback L4: Any / Any Category");
+        const snapshot = await adminDb.collection("websites")
+            .where("active", "==", true)
+            // .where("hasCredits", "==", true) // REMOVED
+            .limit(20)
+            .get();
+        selectedAd = pickRandom(snapshot.docs);
+    }
 
-    // 3. Last Resort: System Ad (Self-Promo)
-    // If we have no paid ads to show, show a RunAds promo so the widget isn't empty.
+    // --- HIERARCHY LEVEL 5: System Promo ---
     if (!selectedAd) {
         selectedAd = {
-            id: "system-promo", // Special ID
+            id: "system-promo", 
             domain: "runads.onrender.com",
             category: "Technology",
             description: "Advertise your website here! Join the RunAds network today.",
@@ -86,7 +112,7 @@ export async function GET(request: NextRequest) {
         };
     }
 
-    // Count View (only if it's a real ad, optional)
+    // Count View (only if it's a real ad)
     if (selectedAd.id !== "system-promo") {
         await adminDb.collection("websites").doc(sourceSiteId).update({
             views: FieldValue.increment(1)

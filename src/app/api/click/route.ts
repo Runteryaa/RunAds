@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   try {
     const adminDb = getAdminDb();
 
-    // 3. Fetch & Validate Source (The Publisher)
+    // 2. Fetch & Validate Source (The Publisher)
     const sourceDocRef = adminDb.collection("websites").doc(sourceSiteId);
     const sourceDoc = await sourceDocRef.get();
 
@@ -26,30 +26,35 @@ export async function GET(request: NextRequest) {
     }
     const sourceData = sourceDoc.data();
 
-    // 🔒 SECURITY: Referer Check (Prevent Bot/Direct Link Abuse)
-    const referer = request.headers.get('referer');
-    const registeredDomain = sourceData?.domain;
-    
-    // 4. Fetch Target (The Advertiser)
+    // 3. Fetch Target (The Advertiser)
     const targetDocRef = adminDb.collection("websites").doc(targetSiteId);
     const targetDoc = await targetDocRef.get();
 
     if (!targetDoc.exists) {
+        // Fallback for system promos or deleted sites
+        if (targetSiteId === "system-promo") {
+             return NextResponse.redirect("https://runads.onrender.com");
+        }
         return NextResponse.json({ error: "Target Site Not Found" }, { status: 404 });
     }
     const targetData = targetDoc.data();
 
-    // 5. Calculate Destination URL
+    // 4. Calculate Destination URL
     let destinationUrl = targetData?.domain || "https://google.com";
     destinationUrl = destinationUrl.trim();
     if (!destinationUrl.startsWith("http://") && !destinationUrl.startsWith("https://")) {
         destinationUrl = `https://${destinationUrl}`;
     }
 
-    // 🛡️ ANTI-FRAUD: Prevent Self-Clicking
+    // 5. ANTI-FRAUD: Prevent Self-Clicking
     if (process.env.IS_BETA !== 'true' && sourceData?.userId === targetData?.userId) {
         console.log("Self-click prevented in production.");
         return NextResponse.redirect(destinationUrl);
+    }
+    
+    // 6. Handling System Promos
+    if (targetSiteId === "system-promo") {
+         return NextResponse.redirect(destinationUrl);
     }
 
     // Variables to track if we need to update website statuses after transaction
@@ -58,7 +63,7 @@ export async function GET(request: NextRequest) {
     const targetUserId = targetData?.userId;
     const sourceUserId = sourceData?.userId;
 
-    // 6. EXECUTE TRANSACTION
+    // 7. EXECUTE TRANSACTION (Direct Credit Transfer)
     await adminDb.runTransaction(async (t) => {
         const targetUserRef = adminDb.collection("users").doc(targetUserId);
         const sourceUserRef = adminDb.collection("users").doc(sourceUserId);
@@ -94,12 +99,11 @@ export async function GET(request: NextRequest) {
             }
         } else {
            // User out of credits. We can't charge them.
-           // Ideally we shouldn't have served this ad, but if we did, we ensure they are disabled now.
            shouldDisableTarget = true;
         }
     });
 
-    // 7. POST-TRANSACTION UPDATES (Sync hasCredits flag on websites)
+    // 8. POST-TRANSACTION UPDATES (Sync hasCredits flag on websites)
     // We do this outside the transaction to avoid read-after-write limitations and keep the transaction fast.
     
     if (shouldDisableTarget) {
@@ -133,7 +137,7 @@ export async function GET(request: NextRequest) {
         }
     }
 
-    // 8. Redirect User
+    // 9. Redirect User
     return NextResponse.redirect(destinationUrl);
 
   } catch (error) {
