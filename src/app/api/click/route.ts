@@ -14,13 +14,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing Parameters" }, { status: 400 });
   }
 
-  // IP Address Detection
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  // IP Address Detection (Sanitize dots/colons for Doc ID usage)
+  const rawIp = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const ip = rawIp.replace(/[^a-zA-Z0-9]/g, "_"); 
 
   try {
     const adminDb = getAdminDb();
 
-    // 2. Fetch & Validate Source (The Publisher)
+    // 2. Fetch & Validate Source
     const sourceDocRef = adminDb.collection("websites").doc(sourceSiteId);
     const sourceDoc = await sourceDocRef.get();
 
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
     }
     const sourceData = sourceDoc.data();
 
-    // 3. Fetch Target (The Advertiser)
+    // 3. Fetch Target
     const targetDocRef = adminDb.collection("websites").doc(targetSiteId);
     const targetDoc = await targetDocRef.get();
 
@@ -41,7 +42,6 @@ export async function GET(request: NextRequest) {
     }
     const targetData = targetDoc.data();
 
-    // 4. Calculate Destination URL
     let destinationUrl = targetData?.domain || "https://google.com";
     destinationUrl = destinationUrl.trim();
     if (!destinationUrl.startsWith("http://") && !destinationUrl.startsWith("https://")) {
@@ -56,34 +56,28 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(destinationUrl);
     }
     
-    // B. System Promos (No credit)
+    // B. System Promos
     if (targetSiteId === "system-promo") {
          return NextResponse.redirect(destinationUrl);
     }
 
-    // C. RATE LIMITING (1 Click per IP per Source per 24h)
-    // We check if this IP has already clicked on THIS source website recently.
-    // Note: We don't care which Target they clicked. We limit the Publisher's ability to generate credits from one person.
+    // C. RATE LIMITING (Index-Free Approach)
+    // We enforce 1 click per Calendar Day (UTC).
+    // Doc ID: click_logs / {sourceSiteId}_{ip}_{YYYY-MM-DD}
+    // This allows us to use a direct .get() which is fast and needs no index.
     
-    // Calculate timestamp for 24 hours ago
-    const yesterday = new Date();
-    yesterday.setHours(yesterday.getHours() - 24);
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const logId = `${sourceSiteId}_${ip}_${today}`;
+    const logDocRef = adminDb.collection("click_logs").doc(logId);
+    
+    const logDoc = await logDocRef.get();
 
-    const logsRef = adminDb.collection("click_logs");
-    const existingLogQuery = await logsRef
-        .where("ip", "==", ip)
-        .where("sourceSiteId", "==", sourceSiteId)
-        .where("timestamp", ">", yesterday)
-        .limit(1)
-        .get();
-
-    if (!existingLogQuery.empty) {
-        console.log(`[Click] Rate Limit: IP ${ip} already clicked on site ${sourceSiteId} in last 24h.`);
-        // Redirect the user but DO NOT transfer credits.
+    if (logDoc.exists) {
+        console.log(`[Click] Rate Limit: IP ${ip} already clicked on site ${sourceSiteId} today.`);
         return NextResponse.redirect(destinationUrl);
     }
 
-    // 6. EXECUTE TRANSACTION & LOGGING
+    // 6. EXECUTE TRANSACTION
     let shouldDisableTarget = false;
     let shouldEnableSource = false;
     const targetUserId = targetData?.userId;
@@ -108,14 +102,13 @@ export async function GET(request: NextRequest) {
             t.update(sourceDocRef, { clicks: FieldValue.increment(1) });
             t.update(targetDocRef, { visitors: FieldValue.increment(1) });
             
-            // Log this click to enforce rate limit
-            // We use a new doc ID composed of IP + Source + Day? No, random ID is fine with timestamp index.
-            const logDocRef = logsRef.doc();
+            // Log this click to enforce rate limit (Create the daily lock)
             t.set(logDocRef, {
-                ip: ip,
+                ip: rawIp,
                 sourceSiteId: sourceSiteId,
                 targetSiteId: targetSiteId,
-                timestamp: FieldValue.serverTimestamp()
+                timestamp: FieldValue.serverTimestamp(),
+                day: today
             });
 
             // Campaign Logic
