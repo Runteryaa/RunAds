@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false; // Only admin via server actions can write for now
+    }
+    
+    match /websites/{websiteId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /click_logs/{logId} {
+       allow read, write: if false;
+    }
+
+    match /websites/{websiteId}/daily_stats/{day} {
+       allow read: if request.auth != null && get(/databases/$(database)/documents/websites/$(websiteId)).data.userId == request.auth.uid;
+    }
+
+    match /websites/{websiteId}/analytics/{day} {
+       allow read: if request.auth != null && get(/databases/$(database)/documents/websites/$(websiteId)).data.userId == request.auth.uid;
+    }
+  }
+}

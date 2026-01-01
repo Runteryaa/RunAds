@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import geoip from 'geoip-lite';
+import UAParser from 'ua-parser-js';
 
 export const dynamic = 'force-dynamic'; // Prevent caching
 
@@ -17,6 +19,17 @@ export async function GET(request: NextRequest) {
   // IP Address Detection (Sanitize dots/colons for Doc ID usage)
   const rawIp = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
   const ip = rawIp.replace(/[^a-zA-Z0-9]/g, "_"); 
+
+  // Parse User Agent
+  const userAgentString = request.headers.get("user-agent") || "";
+  const parser = new UAParser(userAgentString);
+  const deviceType = parser.getDevice().type || "desktop"; // 'mobile', 'tablet', 'console', 'smarttv', 'wearable', 'embedded'
+  const browserName = parser.getBrowser().name || "unknown";
+  const osName = parser.getOS().name || "unknown";
+
+  // Parse Geo Location
+  const geo = geoip.lookup(rawIp);
+  const country = geo?.country || "Unknown";
 
   try {
     const adminDb = getAdminDb();
@@ -93,6 +106,10 @@ export async function GET(request: NextRequest) {
         // References for daily stats
         const sourceDailyStatsRef = sourceDocRef.collection("daily_stats").doc(today);
 
+        // References for aggregated Analytics
+        const analyticsRef = sourceDocRef.collection("analytics").doc(today);
+
+
         const currentTargetCredits = targetUserDoc.data()?.credits || 0;
         const currentSourceCredits = sourceUserDoc.data()?.credits || 0;
 
@@ -111,13 +128,27 @@ export async function GET(request: NextRequest) {
                 clicks: FieldValue.increment(1) 
             }, { merge: true });
 
+            // Update Granular Analytics (Device/Country)
+            t.set(analyticsRef, {
+                date: today,
+                [`countries.${country}`]: FieldValue.increment(1),
+                [`devices.${deviceType}`]: FieldValue.increment(1),
+                [`browsers.${browserName}`]: FieldValue.increment(1),
+                [`os.${osName}`]: FieldValue.increment(1),
+                totalClicks: FieldValue.increment(1)
+            }, { merge: true });
+
             // Log this click to enforce rate limit (Create the daily lock)
             t.set(logDocRef, {
                 ip: rawIp,
                 sourceSiteId: sourceSiteId,
                 targetSiteId: targetSiteId,
                 timestamp: FieldValue.serverTimestamp(),
-                day: today
+                day: today,
+                country: country,
+                device: deviceType,
+                browser: browserName,
+                os: osName
             });
 
             // Campaign Logic

@@ -1,169 +1,126 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  AreaChart, Area, PieChart, Pie, Cell 
-} from "recharts";
-import { Loader2 } from "lucide-react";
-import { getWebsiteStats } from "@/app/actions/analytics";
+    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+    BarChart, Bar, Legend, PieChart, Pie, Cell 
+} from 'recharts';
+import { getWebsiteAnalytics, AnalyticsData } from '@/app/actions/analytics';
 
-interface AnalyticsData {
-  views: number;
-  clicks: number;
-  ctr: number;
-  dailyStats: { date: string; views: number; clicks: number }[];
-  deviceStats: { name: string; value: number }[];
-}
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-slate-900 border border-white/10 p-3 rounded-lg shadow-xl">
-        <p className="text-slate-300 font-medium mb-2">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <div key={index} className="flex items-center gap-2 text-sm">
-            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-            <span className="text-slate-400 capitalize">{entry.name}:</span>
-            <span className="text-white font-bold">{entry.value}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
+export default function AnalyticsCharts({ websiteId }: { websiteId: string }) {
+    const [data, setData] = useState<AnalyticsData[]>([]);
+    const [loading, setLoading] = useState(true);
 
-export function AnalyticsCharts({ websiteId }: { websiteId: string }) {
-  const [data, setData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-        try {
-            const stats = await getWebsiteStats(websiteId);
-            setData(stats);
-        } catch (error) {
-            console.error("Failed to load analytics:", error);
-        } finally {
-            setLoading(false);
+    useEffect(() => {
+        async function fetchAnalytics() {
+            try {
+                const analytics = await getWebsiteAnalytics(websiteId);
+                setData(analytics);
+            } catch (error) {
+                console.error("Failed to fetch analytics:", error);
+            } finally {
+                setLoading(false);
+            }
         }
-    }
-    
-    if (websiteId) {
-        fetchData();
-    }
-  }, [websiteId]);
+        if (websiteId) {
+            fetchAnalytics();
+        }
+    }, [websiteId]);
 
-  if (loading) {
+    if (loading) return <div className="h-64 flex items-center justify-center text-gray-400">Loading analytics...</div>;
+    if (data.length === 0) return <div className="h-64 flex items-center justify-center text-gray-400">No data available for the last 30 days.</div>;
+
+    // Aggregate Data for Pie Charts
+    const countryData: Record<string, number> = {};
+    const deviceData: Record<string, number> = {};
+
+    data.forEach(day => {
+        if (day.countries) {
+            Object.entries(day.countries).forEach(([country, count]) => {
+                countryData[country] = (countryData[country] || 0) + count;
+            });
+        }
+        if (day.devices) {
+            Object.entries(day.devices).forEach(([device, count]) => {
+                const label = device === 'undefined' ? 'Desktop' : device; // Map undefined to Desktop usually
+                deviceData[label] = (deviceData[label] || 0) + count;
+            });
+        }
+    });
+
+    const countryChartData = Object.keys(countryData).map(key => ({ name: key, value: countryData[key] })).sort((a,b) => b.value - a.value).slice(0, 5);
+    const deviceChartData = Object.keys(deviceData).map(key => ({ name: key, value: deviceData[key] }));
+
     return (
-      <div className="flex items-center justify-center h-64 bg-slate-900/50 rounded-xl border border-white/5">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-      </div>
-    );
-  }
-
-  if (!data) return null;
-
-  const COLORS = ["#6366f1", "#06b6d4", "#8b5cf6"];
-
-  return (
-    <div className="space-y-6">
-      <div className="grid lg:grid-cols-2 gap-6">
-        
-        {/* Main Performance Chart */}
-        <div className="bg-slate-900/50 border border-white/5 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-white mb-6">Traffic Overview (Last 7 Days)</h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.dailyStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                <XAxis 
-                    dataKey="date" 
-                    stroke="#94a3b8" 
-                    fontSize={12} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    dy={10}
-                />
-                <YAxis 
-                    stroke="#94a3b8" 
-                    fontSize={12} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tickFormatter={(value) => `${value}`}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#ffffff20' }} />
-                <Area 
-                    type="monotone" 
-                    dataKey="views" 
-                    stroke="#6366f1" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorViews)" 
-                />
-                <Area 
-                    type="monotone" 
-                    dataKey="clicks" 
-                    stroke="#06b6d4" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorClicks)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Device Distribution */}
-        <div className="bg-slate-900/50 border border-white/5 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-white mb-6">Device Distribution</h3>
-          <div className="flex flex-col md:flex-row items-center justify-center h-[300px]">
-            <div className="h-full w-full md:w-1/2">
-                <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                    <Pie
-                    data={data.deviceStats}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                    >
-                    {data.deviceStats.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0)" />
-                    ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-                </ResponsiveContainer>
+        <div className="space-y-8">
+            {/* Clicks Over Time */}
+            <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4">Clicks (Last 30 Days)</h3>
+                <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={data}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                            <XAxis dataKey="date" stroke="#9CA3AF" tickFormatter={(str) => str.slice(5)} />
+                            <YAxis stroke="#9CA3AF" />
+                            <Tooltip 
+                                contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '0.5rem', color: '#fff' }}
+                            />
+                            <Line type="monotone" dataKey="totalClicks" stroke="#3B82F6" strokeWidth={2} activeDot={{ r: 8 }} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
             </div>
-            
-            <div className="w-full md:w-1/2 flex flex-col justify-center gap-4 px-4">
-                {data.deviceStats.map((entry, index) => (
-                    <div key={entry.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                            <span className="text-slate-300">{entry.name}</span>
-                        </div>
-                        <span className="text-white font-bold">{entry.value}%</span>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Top Countries */}
+                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                    <h3 className="text-lg font-semibold text-white mb-4">Top Countries</h3>
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={countryChartData} layout="vertical">
+                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+                                <XAxis type="number" stroke="#9CA3AF" />
+                                <YAxis dataKey="name" type="category" stroke="#9CA3AF" width={100} />
+                                <Tooltip 
+                                    contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '0.5rem', color: '#fff' }}
+                                />
+                                <Bar dataKey="value" fill="#10B981" radius={[0, 4, 4, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
-                ))}
+                </div>
+
+                {/* Device Type */}
+                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                    <h3 className="text-lg font-semibold text-white mb-4">Device Breakdown</h3>
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={deviceChartData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    fill="#8884d8"
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {deviceChartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip 
+                                    contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '0.5rem', color: '#fff' }}
+                                />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }

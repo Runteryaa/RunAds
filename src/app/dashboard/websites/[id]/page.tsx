@@ -6,7 +6,7 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { Loader2, ArrowLeft, Copy, Check, Save, Play, Pause, MonitorPlay, MonitorStop, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { AnalyticsCharts } from "@/components/AnalyticsCharts";
+import AnalyticsCharts from "@/components/AnalyticsCharts"; // Import AnalyticsCharts
 
 export default function WebsiteDetailsPage() {
   const params = useParams();
@@ -234,8 +234,8 @@ export default function WebsiteDetailsPage() {
 
         {/* RIGHT COLUMN: Settings Form */}
         <div className="lg:col-span-2 space-y-8">
-            
-            {/* New Analytics Section */}
+
+            {/* Analytics Section */}
             <AnalyticsCharts websiteId={websiteId} />
 
             <div className="bg-slate-900 border border-white/10 rounded-2xl p-8">
