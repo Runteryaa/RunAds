@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { Loader2, ArrowLeft, Copy, Check, Save, Play, Pause, MonitorPlay, MonitorStop } from "lucide-react";
+import { Loader2, ArrowLeft, Copy, Check, Save, Play, Pause, MonitorPlay, MonitorStop, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { AnalyticsCharts } from "@/components/AnalyticsCharts";
 
 export default function WebsiteDetailsPage() {
   const params = useParams();
@@ -13,6 +14,7 @@ export default function WebsiteDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [seeding, setSeeding] = useState(false); // State for seeding
 
   // Editable fields
   const [refreshInterval, setRefreshInterval] = useState(30);
@@ -118,6 +120,7 @@ export default function WebsiteDetailsPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -212,14 +215,17 @@ export default function WebsiteDetailsPage() {
             </div>
 
              <div className="bg-slate-900 border border-white/10 rounded-2xl p-6">
-                <h2 className="text-lg font-bold text-white mb-4">Analytics</h2>
+                <div className="flex justify-between items-center mb-4">
+                     <h2 className="text-lg font-bold text-white">Total Stats</h2>
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-slate-950 rounded-xl border border-white/5">
-                        <p className="text-xs text-slate-500 mb-1">Views</p>
+                        <p className="text-xs text-slate-500 mb-1">Total Views</p>
                         <p className="text-xl font-bold text-white">{website.views || 0}</p>
                     </div>
                     <div className="p-4 bg-slate-950 rounded-xl border border-white/5">
-                        <p className="text-xs text-slate-500 mb-1">Clicks</p>
+                        <p className="text-xs text-slate-500 mb-1">Total Clicks</p>
                         <p className="text-xl font-bold text-white">{website.clicks || 0}</p>
                     </div>
                 </div>
@@ -227,7 +233,11 @@ export default function WebsiteDetailsPage() {
         </div>
 
         {/* RIGHT COLUMN: Settings Form */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-8">
+            
+            {/* New Analytics Section */}
+            <AnalyticsCharts websiteId={websiteId} />
+
             <div className="bg-slate-900 border border-white/10 rounded-2xl p-8">
                 <h2 className="text-xl font-bold text-white mb-6">Website Settings</h2>
                 

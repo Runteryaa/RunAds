@@ -89,6 +89,9 @@ export async function GET(request: NextRequest) {
 
         const targetUserDoc = await t.get(targetUserRef);
         const sourceUserDoc = await t.get(sourceUserRef);
+        
+        // References for daily stats
+        const sourceDailyStatsRef = sourceDocRef.collection("daily_stats").doc(today);
 
         const currentTargetCredits = targetUserDoc.data()?.credits || 0;
         const currentSourceCredits = sourceUserDoc.data()?.credits || 0;
@@ -98,10 +101,16 @@ export async function GET(request: NextRequest) {
             t.update(targetUserRef, { credits: FieldValue.increment(-1) });
             t.update(sourceUserRef, { credits: FieldValue.increment(1) });
             
-            // Update Stats
+            // Update Stats (Total)
             t.update(sourceDocRef, { clicks: FieldValue.increment(1) });
             t.update(targetDocRef, { visitors: FieldValue.increment(1) });
             
+            // Update Stats (Daily)
+            t.set(sourceDailyStatsRef, { 
+                date: today,
+                clicks: FieldValue.increment(1) 
+            }, { merge: true });
+
             // Log this click to enforce rate limit (Create the daily lock)
             t.set(logDocRef, {
                 ip: rawIp,

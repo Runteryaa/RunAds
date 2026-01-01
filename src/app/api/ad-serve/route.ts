@@ -131,9 +131,35 @@ export async function GET(request: NextRequest) {
 
     // Count View (only if it's a real ad)
     if (selectedAd.id !== "system-promo") {
-        await adminDb.collection("websites").doc(sourceSiteId).update({
+        // Increment Total Views on Source Site
+        const sourceRef = adminDb.collection("websites").doc(sourceSiteId);
+        
+        // TRACK DAILY STATS (New for Analytics)
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const dailyStatsRef = sourceRef.collection("daily_stats").doc(today);
+
+        // Detect Device
+        const ua = request.headers.get("user-agent") || "";
+        let deviceField = "viewsDesktop";
+        if (/Tablet|iPad/i.test(ua)) deviceField = "viewsTablet";
+        else if (/Mobi|Android/i.test(ua)) deviceField = "viewsMobile";
+
+        // We use a Batch to ensure atomicity
+        const batch = adminDb.batch();
+        
+        batch.update(sourceRef, {
             views: FieldValue.increment(1)
         });
+        
+        const statsUpdate: any = {
+            date: today,
+            views: FieldValue.increment(1)
+        };
+        statsUpdate[deviceField] = FieldValue.increment(1);
+
+        batch.set(dailyStatsRef, statsUpdate, { merge: true });
+
+        await batch.commit();
     }
 
     return NextResponse.json({ 

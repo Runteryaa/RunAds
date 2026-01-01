@@ -50,5 +50,5 @@
 ### Phase 4: Analytics & UI Polish
 - [x] Landing Page: Modern, high-converting design.
 - [x] Dashboard: Show views/clicks and current balance.
-- [ ] Advanced Analytics (Charts/Graphs) - *Planned for future update*.
+- [x] Advanced Analytics (Charts/Graphs).
 - [x] Responsiveness check.
