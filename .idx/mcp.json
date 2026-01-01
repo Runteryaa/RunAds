@@ -7,6 +7,12 @@
                 "firebase-tools@latest",
                 "experimental:mcp"
             ]
+        },
+        "render": {
+            "url": "https://mcp.render.com/mcp",
+            "headers": {
+                "Authorization": "Bearer rnd_3UEWgIFbtyLh2LJGJsapq00rGMx2"
+            }
         }
     }
 }
