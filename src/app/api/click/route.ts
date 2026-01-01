@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import geoip from 'geoip-lite';
-import UAParser from 'ua-parser-js';
+import { UAParser } from 'ua-parser-js';
 
 export const dynamic = 'force-dynamic'; // Prevent caching
 
