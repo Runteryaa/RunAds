@@ -6,7 +6,7 @@ import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { doc, getDoc, setDoc, onSnapshot, Timestamp } from "firebase/firestore";
 import Link from "next/link";
-import { BarChart3, Globe, LogOut, Plus, LayoutDashboard, Code, User as UserIcon, Loader2, CreditCard, Shield, Ban } from "lucide-react";
+import { BarChart3, Globe, LogOut, Plus, LayoutDashboard, Code, User as UserIcon, Loader2, CreditCard, Shield, Ban, Copy, Check, DollarSign } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -15,6 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isAdmin, setIsAdmin] = useState(false);
   const [banUntil, setBanUntil] = useState<Timestamp | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -70,6 +71,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       
       return () => unsubscribeAuth();
   }, [router]);
+
+  const handleCopyId = () => {
+      if (user) {
+          navigator.clipboard.writeText(user.uid);
+          setCopiedId(true);
+          setTimeout(() => setCopiedId(false), 2000);
+      }
+  };
 
   if (loading) {
     return (
@@ -149,13 +158,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <LayoutDashboard className="w-5 h-5" />
             Dashboard
           </Link>
-          <Link href="/dashboard/websites" className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-            <Globe className="w-5 h-5" />
-            My Websites
-          </Link>
           <Link href="/dashboard/credits" className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
             <CreditCard className="w-5 h-5" />
             Buy Credits
+          </Link>
+          <Link href="/dashboard/cashout" className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+            <DollarSign className="w-5 h-5" />
+            Cashout
           </Link>
 
           {isAdmin && (
@@ -177,39 +186,49 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         </nav>
 
-        <div className="p-4 border-t border-white/10">
-          <div className="px-4 py-3 bg-indigo-500/10 border border-indigo-500/20 rounded-lg mb-4">
-            <p className="text-xs text-indigo-300 uppercase font-bold tracking-wider mb-1">Balance</p>
+        <div className="p-4 border-t border-white/10 space-y-4">
+          
+          {/* Credits Box */}
+          <div className="px-4 py-3 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+            <p className="text-xs text-indigo-300 uppercase font-bold tracking-wider mb-1">Credits</p>
             <div className="flex justify-between items-end">
-                <p className="text-2xl font-bold text-white">{credits !== null ? credits : '-'} <span className="text-sm font-normal text-slate-400">Cr</span></p>
+                <p className="text-2xl font-bold text-white">{credits !== null ? credits : '-'}</p>
                 <Link href="/dashboard/credits" className="p-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-white transition-colors" title="Buy More">
                     <Plus className="w-4 h-4" />
                 </Link>
             </div>
           </div>
-          <button 
-            onClick={() => auth.signOut()}
-            className="flex items-center gap-3 px-4 py-3 w-full text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors text-sm"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
+
+          {/* User Info & Sign Out */}
+          <div className="pt-2">
+              {user && (
+                  <div className="px-1 mb-3">
+                      <p className="text-sm font-medium text-white truncate mb-1" title={user.email || ""}>
+                          {user.email}
+                      </p>
+                      <div className="flex items-center gap-2 group cursor-pointer" onClick={handleCopyId} title="Click to copy User ID">
+                          <code className="text-[10px] text-slate-500 bg-slate-900 px-1.5 py-0.5 rounded border border-white/5 font-mono truncate max-w-[120px]">
+                              {user.uid}
+                          </code>
+                          {copiedId ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3 text-slate-600 group-hover:text-slate-400" />}
+                      </div>
+                  </div>
+              )}
+              
+              <button 
+                onClick={() => auth.signOut()}
+                className="flex items-center gap-3 px-4 py-3 w-full text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors text-sm"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        <header className="md:hidden p-4 border-b border-white/10 flex justify-between items-center bg-slate-950/80 backdrop-blur-md sticky top-0 z-20">
-          <Link href="/" className="font-bold text-xl">RunAds</Link>
-          <div className="flex items-center gap-4">
-             <div className="flex items-center gap-2 bg-indigo-500/10 px-3 py-1.5 rounded-full border border-indigo-500/20">
-                <span className="text-sm font-bold text-white">{credits !== null ? credits : '-'}</span>
-                <Link href="/dashboard/credits"><Plus className="w-4 h-4 text-indigo-400" /></Link>
-             </div>
-             <button onClick={() => auth.signOut()}><LogOut className="w-5 h-5" /></button>
-          </div>
-        </header>
-        <div className="p-6 md:p-12 max-w-6xl mx-auto">
+        <div className="p-6 md:p-12 h-full mx-auto">
           {children}
         </div>
       </main>

@@ -217,7 +217,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto pb-12" onClick={() => { setOpenBanDropdownId(null); setOpenRoleDropdownId(null); }}>
+    <div className="max-w-7xl h-full" onClick={() => { setOpenBanDropdownId(null); setOpenRoleDropdownId(null); }}>
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6">
         <div className="flex items-center gap-3">
             <Shield className="w-8 h-8 text-indigo-400" />
@@ -225,21 +225,6 @@ export default function AdminPage() {
                 <h1 className="text-2xl font-bold text-white">Admin Panel</h1>
                 <p className="text-slate-400">System Administration</p>
             </div>
-        </div>
-
-        <div className="flex bg-slate-900/50 p-1 rounded-lg border border-white/10">
-          <button 
-            onClick={() => setTab("websites")}
-            className={`flex items-center gap-2 px-6 py-2 text-sm font-medium rounded-md transition-all ${activeTab === "websites" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "text-slate-400 hover:text-white hover:bg-white/5"}`}
-          >
-              <Globe className="w-4 h-4" /> Websites
-          </button>
-          <button 
-            onClick={() => setTab("users")}
-            className={`flex items-center gap-2 px-6 py-2 text-sm font-medium rounded-md transition-all ${activeTab === "users" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "text-slate-400 hover:text-white hover:bg-white/5"}`}
-          >
-              <User className="w-4 h-4" /> Users
-          </button>
         </div>
       </div>
       
@@ -313,7 +298,7 @@ export default function AdminPage() {
             {loadingUsers ? (
             <div className="p-16 flex justify-center items-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-400" /></div>
             ) : (
-            <div className="overflow-x-auto" style={{ minHeight: '400px' }}>
+            <div>
                 <table className="w-full text-left">
                 <thead>
                     <tr className="border-b border-white/10">
@@ -334,35 +319,8 @@ export default function AdminPage() {
                         <td className="p-4 text-slate-400 text-xs font-mono">{user.id}</td>
                         <td className="p-4 text-indigo-300 font-bold">{user.credits || 0}</td>
                         <td className="p-4 text-slate-400 text-xs">
-                            {user.isOwner ? (
-                                <span className="text-yellow-400 font-bold flex items-center gap-1"><Crown className="w-3 h-3 fill-current" /> Owner</span>
-                            ) : user.isAdmin ? (
-                                <span className="text-purple-400 font-bold flex items-center gap-1"><Shield className="w-3 h-3" /> Admin</span>
-                            ) : (
-                                "User"
-                            )}
-                        </td>
-                        <td className="p-4 text-right">
-                            <div className="flex gap-2 justify-end items-center relative">
-                                <button 
-                                    onClick={() => handleModifyCredits(user.id, 100)} 
-                                    className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded-lg flex items-center gap-1 text-xs"
-                                    title="Add 100 Credits"
-                                >
-                                    <Plus className="w-3 h-3" /> 100
-                                </button>
-                                <button 
-                                    onClick={() => handleModifyCredits(user.id, -100)} 
-                                    className="bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-lg flex items-center gap-1 text-xs"
-                                    title="Remove 100 Credits"
-                                >
-                                    <Minus className="w-3 h-3" /> 100
-                                </button>
-                                
-                                <div className="h-6 w-px bg-white/10 mx-1"></div>
-
-                                {/* ROLE DROPDOWN */}
-                                <div className="relative">
+                            {/* ROLE DROPDOWN */}
+                            <div className="relative">
                                     <button 
                                         onClick={(e) => { 
                                             e.stopPropagation(); 
@@ -373,14 +331,21 @@ export default function AdminPage() {
                                                 alert("You do not have permission to manage this user's role.");
                                             }
                                         }}
-                                        className={`p-2 rounded-lg transition-colors ${
+                                        className={`p-2 rounded-lg flex transition-colors ${
                                             !canManageRole(user) ? 'opacity-50 cursor-not-allowed ' : ''
                                         }${
                                             user.isOwner ? 'bg-yellow-600 hover:bg-yellow-500 text-white' : user.isAdmin ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
                                         }`}
                                         title="Change Role"
                                     >
-                                        <UserCog className="w-4 h-4" />
+                                        <UserCog className="w-4 h-4" /> 
+                                        {user.isOwner ? (
+                                            <span className="font-bold flex items-center gap-1">Owner</span>
+                                        ) : user.isAdmin ? (
+                                            <span className="font-bold flex items-center gap-1">Admin</span>
+                                        ) : (
+                                            <span className="font-bold flex items-center gap-1">User</span>
+                                        )}
                                     </button>
 
                                     {openRoleDropdownId === user.id && (
@@ -415,6 +380,25 @@ export default function AdminPage() {
                                         </div>
                                     )}
                                 </div>
+                        </td>
+                        <td className="p-4 text-right">
+                            <div className="flex gap-2 justify-end items-center relative">
+                                <button 
+                                    onClick={() => handleModifyCredits(user.id, 100)} 
+                                    className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded-lg flex items-center gap-1 text-xs"
+                                    title="Add 100 Credits"
+                                >
+                                    <Plus className="w-3 h-3" /> 100
+                                </button>
+                                <button 
+                                    onClick={() => handleModifyCredits(user.id, -100)} 
+                                    className="bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-lg flex items-center gap-1 text-xs"
+                                    title="Remove 100 Credits"
+                                >
+                                    <Minus className="w-3 h-3" /> 100
+                                </button>
+                                
+                                <div className="h-6 w-px bg-white/10 mx-1"></div>
 
                                 {/* BAN DROPDOWN */}
                                 <div className="relative">

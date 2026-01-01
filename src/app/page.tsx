@@ -1,21 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BarChart3, Globe, ShieldCheck } from "lucide-react";
+import { ArrowRight, BarChart3, Globe, ShieldCheck, LogOut, LayoutDashboard } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged, User } from "firebase/auth";
 
 export default function LandingPage() {
-  
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-    const scriptText = '<script src="https://runads.onrender.com/api/script?id=DEMO" async></script>';
+  
+  const scriptText = '<script src="https://runads.onrender.com/api/script?id=DEMO" async></script>';
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(scriptText);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleCopy = () => {
+      navigator.clipboard.writeText(scriptText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+  };
     
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white overflow-hidden">
@@ -30,18 +41,40 @@ export default function LandingPage() {
               RunAds
             </span>
           </div>
+          
           <div className="hidden md:flex gap-8 text-sm font-medium text-slate-300">
             <Link href="#features" className="hover:text-white transition-colors">Features</Link>
             <Link href="#how-it-works" className="hover:text-white transition-colors">How it Works</Link>
-            <Link href="/about" className="hover:text-white transition-colors">About</Link>
+            <Link href="/legal/about" className="hover:text-white transition-colors">About</Link>
           </div>
-          <div className="flex gap-4">
-            <Link href="/login" className="px-5 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors">
-              Log in
-            </Link>
-            <Link href="/register" className="px-5 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-lg shadow-indigo-500/20 transition-all hover:scale-105">
-              Get Started
-            </Link>
+
+          <div className="flex gap-4 items-center">
+            {loading ? (
+               // Loading placeholder (prevents layout shift)
+               <div className="w-24 h-9 bg-white/5 rounded-full animate-pulse" />
+            ) : user ? (
+               <>
+                 <Link href="/dashboard" className="px-5 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 flex items-center gap-2">
+                   <LayoutDashboard className="w-4 h-4" /> Dashboard
+                 </Link>
+                 <button 
+                    onClick={() => auth.signOut()}
+                    className="p-2 text-slate-400 hover:text-white transition-colors"
+                    title="Log Out"
+                 >
+                    <LogOut className="w-5 h-5" />
+                 </button>
+               </>
+            ) : (
+               <>
+                 <Link href="/login" className="px-5 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors">
+                   Log in
+                 </Link>
+                 <Link href="/register" className="px-5 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-lg shadow-indigo-500/20 transition-all hover:scale-105">
+                   Get Started
+                 </Link>
+               </>
+            )}
           </div>
         </div>
       </nav>
@@ -70,10 +103,18 @@ export default function LandingPage() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Link href="/register" className="group px-8 py-4 bg-white text-slate-900 rounded-full font-bold text-lg hover:bg-slate-100 transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] flex items-center gap-2">
-                Start Growing Now
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
+              {user ? (
+                  <Link href="/dashboard" className="group px-8 py-4 bg-white text-slate-900 rounded-full font-bold text-lg hover:bg-slate-100 transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] flex items-center gap-2">
+                    Go to Dashboard
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+              ) : (
+                  <Link href="/register" className="group px-8 py-4 bg-white text-slate-900 rounded-full font-bold text-lg hover:bg-slate-100 transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] flex items-center gap-2">
+                    Start Growing Now
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+              )}
+              
               <Link href="#how-it-works" className="px-8 py-4 bg-white/5 text-white border border-white/10 rounded-full font-bold text-lg hover:bg-white/10 transition-all backdrop-blur-sm">
                 Learn More
               </Link>
@@ -174,6 +215,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
     </div>
   );
 }

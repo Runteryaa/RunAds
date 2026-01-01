@@ -37,21 +37,25 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
-        {/* Footer */}
-      <footer className="py-12 border-t border-white/10 bg-slate-950">
-        <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm">
-            <div className="mb-4 md:mb-0">
-              <p>&copy; {new Date().getFullYear()} RunAds Network. All rights reserved.</p>
+      {/* Footer */}
+      <footer className="bg-slate-950 border-t border-white/10 py-12">
+        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2">
+             <div className="w-6 h-6 bg-indigo-600 rounded flex items-center justify-center">
+              <span className="font-bold text-white text-xs">R</span>
             </div>
-            <div className="flex gap-6">
-              <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
-              <Link href="/legal/terms" className="hover:text-white transition-colors">Terms of Service</Link>
-              <Link href="/legal/cookie" className="hover:text-white transition-colors">Cookie Policy</Link>
-              <Link href="/legal/contact" className="hover:text-white transition-colors">Contact Us</Link>
-              <Link href="/legal/about" className="hover:text-white transition-colors">About US</Link>
-            </div>
+            <span className="text-lg font-bold text-white">RunAds</span>
           </div>
+          <div className="flex flex-wrap gap-6 text-sm text-slate-400">
+            <Link href="/legal/about" className="hover:text-white transition-colors">About Us</Link>
+            <Link href="/legal/contact" className="hover:text-white transition-colors">Contact</Link>
+            <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/legal/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+            <Link href="/sitemap.xml" className="hover:text-white transition-colors">Sitemap</Link>
+          </div>
+          <p className="text-slate-500 text-xs">
+            &copy; {new Date().getFullYear()} RunAds. All rights reserved.
+          </p>
         </div>
       </footer>
       </body>

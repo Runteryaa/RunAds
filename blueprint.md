@@ -29,6 +29,7 @@
 - [x] "My Websites" list.
 - [x] Script Generator (Unique ID per site).
 - [x] Website Details page with Embed Code.
+- [x] Cashout Page (Lightning/Bitrefill).
 
 ### Phase 3: Ad Engine (The Script)
 - [x] Develop the Embeddable Widget (Client-side JS at `/api/script`).
