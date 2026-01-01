@@ -30,6 +30,11 @@
 - [x] Script Generator (Unique ID per site).
 - [x] Website Details page with Embed Code.
 - [x] Cashout Page (Lightning/Bitrefill).
+- [x] **Security**: Domain duplication check.
+    - Prevents adding a domain already registered by another user.
+    - **Ban Policy**: 
+        - 1st attempt: 24-hour account suspension.
+        - 2nd attempt: Permanent account ban.
 
 ### Phase 3: Ad Engine (The Script)
 - [x] Develop the Embeddable Widget (Client-side JS at `/api/script`).

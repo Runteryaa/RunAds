@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { auth } from "@/lib/firebase";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { submitWebsite } from "@/app/actions/websites";
 
 const CATEGORIES = [
   "Technology", "Finance", "Health", "Education", "Entertainment", "E-commerce", "Blog", "Other"
@@ -33,43 +33,22 @@ export default function NewWebsitePage() {
     setError(null);
 
     try {
-      let fullUrl = domain.trim();
-      if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
-        fullUrl = `https://${fullUrl}`;
-      }
+      const idToken = await auth.currentUser.getIdToken();
       
-      let urlObject;
-      try {
-        urlObject = new URL(fullUrl);
-      } catch (err) {
-        setError("Invalid URL provided. Please enter a valid domain name.");
-        setLoading(false);
-        return;
-      }
-      
-      const cleanDomain = urlObject.hostname.replace(/^www\./, '');
-
-      await addDoc(collection(db, "websites"), {
-        userId: auth.currentUser.uid,
-        domain: cleanDomain,
+      await submitWebsite(idToken, {
+        domain,
         category,
         refreshInterval: Number(refreshInterval),
-        adTitle: adTitle || cleanDomain,
+        adTitle: adTitle || domain,
         adDescription: adDescription || `Check out this ${category} website.`,
         widgetColor,
         widgetBgColor,
-        createdAt: serverTimestamp(),
-        active: false,
-        status: "pending",
-        hasCredits: true, 
-        views: 0,
-        clicks: 0
       });
 
       router.push("/dashboard/websites");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding website:", error);
-      setError("An unexpected error occurred. Please try again.");
+      setError(error.message || "An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }

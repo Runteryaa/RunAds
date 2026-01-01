@@ -31,7 +31,7 @@ export default function RegisterPage() {
       try {
           await setDoc(doc(db, "users", user.uid), {
             email: user.email,
-            credits: 10, // Initial free credits
+            credits: 50,
             createdAt: new Date(),
           });
           console.log("User profile created in Firestore");

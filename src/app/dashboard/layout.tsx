@@ -14,6 +14,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [credits, setCredits] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [banUntil, setBanUntil] = useState<Timestamp | null>(null);
+  const [permanentBan, setPermanentBan] = useState(false);
+  const [banReason, setBanReason] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState(false);
   const router = useRouter();
@@ -52,7 +54,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     const data = docSnap.data();
                     setCredits(data.credits || 0);
                     setIsAdmin(data.isAdmin === true);
-                    setBanUntil(data.banUntil || null);
+                    setBanUntil(data.bannedUntil || null); // Note: Changed to bannedUntil to match server action
+                    setPermanentBan(data.permanentBan === true);
+                    setBanReason(data.banReason || null);
                 }
                 setLoading(false);
             }, (err) => {
@@ -92,22 +96,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   // --- BAN ENFORCEMENT ---
+  if (permanentBan) {
+    return (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white p-4">
+            <div className="bg-red-950/50 border border-red-500/30 p-8 rounded-2xl max-w-md text-center shadow-2xl shadow-red-900/20 backdrop-blur-sm">
+                <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 ring-1 ring-red-500/50">
+                    <Ban className="w-10 h-10 text-red-500" />
+                </div>
+                <h3 className="text-3xl font-bold text-red-400 mb-4">Account Permanently Banned</h3>
+                <p className="text-slate-300 mb-6 leading-relaxed text-lg">
+                    {banReason || "Your account has been permanently banned due to severe violations of our terms of service."}
+                </p>
+                <div className="text-sm text-slate-500 mb-8">
+                    If you believe this is a mistake, please contact support.
+                </div>
+                <button 
+                    onClick={() => auth.signOut()}
+                    className="px-6 py-3.5 bg-slate-800 text-white font-bold hover:bg-slate-700 rounded-xl transition-colors w-full border border-white/10"
+                >
+                    Sign Out
+                </button>
+            </div>
+        </div>
+    );
+  }
+
   if (banUntil) {
       const banDate = banUntil.toDate();
       if (banDate > new Date()) {
           return (
             <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white p-4">
-                <div className="bg-red-900/20 border border-red-500/30 p-8 rounded-2xl max-w-md text-center shadow-2xl shadow-red-900/20">
-                    <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Ban className="w-8 h-8 text-red-500" />
+                <div className="bg-orange-950/50 border border-orange-500/30 p-8 rounded-2xl max-w-md text-center shadow-2xl shadow-orange-900/20 backdrop-blur-sm">
+                    <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-6 ring-1 ring-orange-500/50">
+                        <Shield className="w-8 h-8 text-orange-500" />
                     </div>
-                    <h3 className="text-2xl font-bold text-red-400 mb-2">Account Suspended</h3>
+                    <h3 className="text-2xl font-bold text-orange-400 mb-2">Account Suspended</h3>
                     <p className="text-slate-300 mb-6 leading-relaxed">
-                        Your account has been suspended for violating our terms of service. You cannot access the dashboard until the suspension is lifted.
+                        {banReason || "Your account has been temporarily suspended."}
                     </p>
-                    <div className="bg-slate-900/50 p-4 rounded-lg mb-6 border border-white/5">
+                    <div className="bg-slate-900/50 p-4 rounded-xl mb-6 border border-white/5">
                         <p className="text-xs text-slate-500 uppercase font-bold mb-1">Suspension Lifted On</p>
-                        <p className="text-white font-mono">{banDate.toLocaleString()}</p>
+                        <p className="text-white font-mono text-lg">{banDate.toLocaleString()}</p>
                     </div>
                     <button 
                         onClick={() => auth.signOut()}
